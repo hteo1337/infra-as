@@ -413,32 +413,11 @@
                 "autoUpgradeMinorVersion": true,
                 "settings": {
                     "fileUris": [
-                        "[parameters('scriptUris').diskResize]",
-                        "[parameters('scriptUris').installPrereq]"
+                        "[parameters('scriptUris').diskResize]"
                     ]
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('sh diskresize.sh && ',
-                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
-                                        ' -b ', variables('multiNode'),
-                                        ' -c ', parameters('VMAdminUserName'),
-                                        ' -d ', parameters('VMAdminPassword'),
-                                        ' -e ', parameters('sqlFQDN'), 
-                                        ' -f ', parameters('SQLServerAdminLogin'),
-                                        ' -g ', parameters('SQLServerAdminPassword'), 
-                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
-                                        ' -i ', parameters('insightsInstallFlag'),
-                                        ' -j ', parameters('testManagerInstallFlag'),
-                                        ' -k ', parameters('automationOpsInstallFlag'),
-                                        ' -l ', parameters('automationHubInstallFlag'),
-                                        ' -m ', parameters('appsInstallFlag'),
-                                        ' -n ', parameters('actionCenterInstallFlag'),
-                                        ' -o ', parameters('taskMiningInstallFlag'), 
-                                        ' -p ', parameters('orchestratorInstallFlag'),
-                                        ' -r ', parameters('aiCenterInstallFlag'),
-                                        ' -s ', variables('rkeToken'),
-                                        ' -t ', variables('haEnabled'),
-                                        ' -u ', parameters('automationSuiteVersion'))]"
+                    "commandToExecute": "['sh diskresize.sh ']"
                 }
             }
         },
@@ -522,30 +501,9 @@
                                     "autoUpgradeMinorVersion": true,
                                     "protectedSettings": {
                                         "fileUris": [
-                                            "[parameters('scriptUris').diskResize]",
-                                            "[parameters('scriptUris').installPrereq]"
+                                            "[parameters('scriptUris').diskResize]"
                                         ],
-                                        "commandToExecute": "[concat('sh diskresize.sh && ',
-                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
-                                        ' -b ', variables('multiNode'),
-                                        ' -c ', parameters('VMAdminUserName'),
-                                        ' -d ', parameters('VMAdminPassword'),
-                                        ' -e ', parameters('sqlFQDN'), 
-                                        ' -f ', parameters('SQLServerAdminLogin'),
-                                        ' -g ', parameters('SQLServerAdminPassword'), 
-                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
-                                        ' -i ', parameters('insightsInstallFlag'),
-                                        ' -j ', parameters('testManagerInstallFlag'),
-                                        ' -k ', parameters('automationOpsInstallFlag'),
-                                        ' -l ', parameters('automationHubInstallFlag'),
-                                        ' -m ', parameters('appsInstallFlag'), 
-                                        ' -n ', parameters('actionCenterInstallFlag'),
-                                        ' -o ', parameters('taskMiningInstallFlag'), 
-                                        ' -p ', parameters('orchestratorInstallFlag'),
-                                        ' -r ', parameters('aiCenterInstallFlag'),
-                                        ' -s ', variables('rkeToken'),
-                                        ' -t ', variables('haEnabled'),
-                                        ' -u ', parameters('automationSuiteVersion'))]"
+                                        "commandToExecute": "['sh diskresize.sh ']"
                                     }
                                 }
                             }
@@ -643,30 +601,9 @@
                                     "autoUpgradeMinorVersion": true,
                                     "protectedSettings": {
                                         "fileUris": [
-                                            "[parameters('scriptUris').diskResize]",
-                                            "[parameters('scriptUris').installPrereq]"
+                                            "[parameters('scriptUris').diskResize]"
                                         ],
-                                        "commandToExecute": "[concat('sh diskresize.sh && ',
-                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
-                                        ' -b ', variables('multiNode'),
-                                        ' -c ', parameters('VMAdminUserName'),
-                                        ' -d ', parameters('VMAdminPassword') ,
-                                        ' -e ', parameters('sqlFQDN'), 
-                                        ' -f ', parameters('SQLServerAdminLogin'),
-                                        ' -g ', parameters('SQLServerAdminPassword'), 
-                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
-                                        ' -i ', parameters('insightsInstallFlag') ,
-                                        ' -j ', parameters('testManagerInstallFlag') ,
-                                        ' -k ', parameters('automationOpsInstallFlag')  ,
-                                        ' -l ', parameters('automationHubInstallFlag')  ,
-                                        ' -m ', parameters('appsInstallFlag') , 
-                                        ' -n ', parameters('actionCenterInstallFlag') ,
-                                        ' -o ', parameters('taskMiningInstallFlag') , 
-                                        ' -p ', parameters('orchestratorInstallFlag') ,
-                                        ' -r ', parameters('aiCenterInstallFlag') ,
-                                        ' -s ', variables('rkeToken'),
-                                        ' -t ', variables('haEnabled'),
-                                        ' -u ', parameters('automationSuiteVersion'))]"
+                                        "commandToExecute": "['sh diskresize.sh ']"
                                     }
                                 }
                             }
@@ -764,30 +701,9 @@
                                     "autoUpgradeMinorVersion": true,
                                     "protectedSettings": {
                                         "fileUris": [
-                                            "[parameters('scriptUris').diskResize]",
-                                            "[parameters('scriptUris').installPrereq]"
+                                            "[parameters('scriptUris').diskResize]"
                                         ],
-                                        "commandToExecute": "[concat('sh diskresize.sh && ',
-                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
-                                        ' -b ', variables('multiNode'),
-                                        ' -c ', parameters('VMAdminUserName'),
-                                        ' -d ', parameters('VMAdminPassword') ,
-                                        ' -e ', parameters('sqlFQDN'), 
-                                        ' -f ', parameters('SQLServerAdminLogin'),
-                                        ' -g ', parameters('SQLServerAdminPassword'), 
-                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
-                                        ' -i ', parameters('insightsInstallFlag') ,
-                                        ' -j ', parameters('testManagerInstallFlag') ,
-                                        ' -k ', parameters('automationOpsInstallFlag')  ,
-                                        ' -l ', parameters('automationHubInstallFlag')  ,
-                                        ' -m ', parameters('appsInstallFlag') , 
-                                        ' -n ', parameters('actionCenterInstallFlag') ,
-                                        ' -o ', parameters('taskMiningInstallFlag') , 
-                                        ' -p ', parameters('orchestratorInstallFlag') ,
-                                        ' -r ', parameters('aiCenterInstallFlag') ,
-                                        ' -s ', variables('rkeToken') ,
-                                        ' -t ', variables('haEnabled'),
-                                        ' -u ', parameters('automationSuiteVersion'))]"
+                                        "commandToExecute": "['sh diskresize.sh ']"
                                     }
                                 }
                             }
