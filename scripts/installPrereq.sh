@@ -93,13 +93,13 @@ JSON_STRING=$( jq -n \
                   --arg rke "$rkeToken" \
                   --arg haa "$haaEnabled" \
                   '{"fqdn": $fqdn,"fixed_rke_address": "10.0.0.4","multinode": $mn,"admin_username": $admnU,"admin_password": $admnP,"ha": $haa,"gpu_support": "false","rke_token": $rke,"server_certificate": {  "ca_cert_file": "/tmp/rootCA.crt",  "tls_cert_file": "/tmp/server.crt",  "tls_key_file": "/tmp/server.key"},"identity_certificate": {  "token_signing_cert_file": "/tmp/identity.pfx",  "token_signing_cert_pass": ""},"sql": {  "server_url": $sqlfqdn,  "username": $sqlAdmnU,  "password": $sqlAdmnP,  "port": "1433",  "create_db": "true"},"sql_connection_string_template": "PLACEHOLDER","orchestrator": {  "testautomation": {    "enabled": $forc  },  "updateserver": {    "enabled": true  }},"aicenter": {    "enabled": $faic ,    "ai_helper": {      "sql_connection_str": "PLACEHOLDER"    },    "ai_pkgmanager": {      "sql_connection_str": "PLACEHOLDER"    },    "ai_deployer": {      "sql_connection_str": "PLACEHOLDER"    },    "ai_trainer": {      "sql_connection_str": "PLACEHOLDER"    },    "ai_appmanager": {      "sql_connection_str": "PLACEHOLDER"    }  },"documentunderstanding": {  "enabled": $fdoc,  "datamanager": {    "sql_connection_str": "PLACEHOLDER"  },  "handwriting": {    "enabled": false,    "max_cpu_per_pod": "PLACEHOLDER"  }},"insights": {  "enabled": $fins },"test_manager": {  "enabled": $ftm },"automation_ops": {  "enabled": $fauo },"automation_hub": {  "enabled": $fauh },"apps": {  "enabled": $fapp },"action_center": {  "enabled": $facc },"task_mining": {  "enabled": $ftmi }}')
-echo "$JSON_STRING" > cluster_config.json
+echo "$JSON_STRING" > /home/cluster_config.json
 
 }
 
 parseParams "$@"
-scaffold
-downloadInstaller
-unzipInstaller
+# scaffold
+# downloadInstaller
+# unzipInstaller
 generateConfig
 exit 0
