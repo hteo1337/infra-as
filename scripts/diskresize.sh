@@ -104,7 +104,7 @@ function do_install() {
   info "installing"
   resize_part
   mount_data_disk
-  scrape_sys_metrics
+  # scrape_sys_metrics
 }
 
 dnf -y install jq
