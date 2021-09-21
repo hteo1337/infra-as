@@ -1,0 +1,91 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "lbPublicIpAddress": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Public Ip Address associated with the load balancer."
+            }
+        },
+        "lbFQDN": {
+            "type": "string",
+            "defaultValue": "lb.example.com",
+            "metadata": {
+                "description": "FQDN associated with the load balancer."
+            }
+        },
+        "BaseName": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Base Resource name"
+            }
+        },
+        "tagsByResource": {
+            "type": "object",
+            "defaultValue": {}
+        }
+    },
+    "variables": {
+    },
+    "resources": [
+        {
+            "apiVersion": "2018-09-01",
+            "type": "Microsoft.Network/privateDnsZones",
+            "name": "[parameters('lbFQDN')]",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Network/privateDnsZones'), parameters('tagsByResource')['Microsoft.Network/privateDnsZones'], json('{}')) ]",
+            "location": "global"
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('lbFQDN'), '/link')]",
+            "location": "global",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', parameters('lbFQDN'))]"
+            ],
+            "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks',concat(parameters('BaseName'),'-VNet'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/A",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('lbFQDN'), '/@')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', parameters('lbFQDN'))]"
+            ],
+            "properties": {
+                "ttl": 300,
+                "aRecords": [
+                    {
+                        "ipv4Address": "[parameters('lbPublicIpAddress')]"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/A",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('lbFQDN'), '/*')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', parameters('lbFQDN'))]"
+            ],
+            "properties": {
+                "ttl": 300,
+                "aRecords": [
+                    {
+                        "ipv4Address": "[parameters('lbPublicIpAddress')]"
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

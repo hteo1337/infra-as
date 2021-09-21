@@ -1,0 +1,151 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "SQLAdminUsername": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "SQL Azure DB administrator user login"
+            }
+        },
+        "SQLAdminPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Database admin user password"
+            }
+        },
+        "adminUsername": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "User login"
+            }
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "User password"
+            }
+        },
+        "baseName": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Base Resource name"
+            }
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "tagsByResource": {
+            "type": "object",
+            "defaultValue": {}
+        }
+    },
+    "variables": {
+        "VaultName": "[concat(parameters('BaseName'),'-VAULT')]",
+        "SKUName": "standard",
+        "SQLAdminUsername": "[parameters('SQLAdminUsername')]",
+        "SQLAdminPassword": "[parameters('SQLAdminPassword')]",
+        "adminUsername": "[parameters('adminUsername')]",
+        "adminPassword": "[parameters('adminPassword')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2019-09-01",
+            "name": "[variables('VaultName')]",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.KeyVault/vaults'), parameters('tagsByResource')['Microsoft.KeyVault/vaults'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "enableRbacAuthorization": false,
+                "enableSoftDelete": false,
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": true,
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": [],
+                "sku": {
+                    "name": "[variables('SKUName')]",
+                    "family": "A"
+                },
+                "networkAcls": {
+                    "defaultAction": "Allow",
+                    "bypass": "AzureServices"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2021-06-01-preview",
+            "name": "[concat(variables('VaultName'), '/SQLAdminUsername')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('VaultName'))]"
+            ],
+            "properties": {
+                "attributes": {
+                    "enabled": true
+                },
+                "value": "[variables('SQLAdminUsername')]"
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2021-06-01-preview",
+            "name": "[concat(variables('VaultName'), '/SQLAdminPassword')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('VaultName'))]"
+            ],
+            "properties": {
+                "attributes": {
+                    "enabled": true
+                },
+                "value": "[variables('SQLAdminPassword')]"
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2021-06-01-preview",
+            "name": "[concat(variables('VaultName'), '/adminUsername')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('VaultName'))]"
+            ],
+            "properties": {
+                "attributes": {
+                    "enabled": true
+                },
+                "value": "[variables('adminUsername')]"
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2021-06-01-preview",
+            "name": "[concat(variables('VaultName'), '/adminPassword')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('VaultName'))]"
+            ],
+            "properties": {
+                "attributes": {
+                    "enabled": true
+                },
+                "value": "[variables('adminPassword')]"
+            }
+        }
+    ],
+    "outputs": {
+        "KVResourceId": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.KeyVault/vaults', variables('VaultName'))]"
+        }
+    }
+}

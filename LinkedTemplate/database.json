@@ -1,0 +1,98 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "SQLServerName": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "SQL Azure DB Server name"
+            }
+        },
+        "SQLServerAdminLogin": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "SQL Azure DB administrator  user login"
+            }
+        },
+        "SQLServerAdminPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Database admin user password"
+            }
+        },
+        "tagsByResource": {
+            "type": "object",
+            "defaultValue": {}
+        }
+    },
+    "variables": {
+    },
+    "resources": [
+        {
+            "name": "[parameters('SQLServerName')]",
+            "type": "Microsoft.Sql/servers",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Sql/servers'), parameters('tagsByResource')['Microsoft.Sql/servers'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "apiVersion": "2020-08-01-preview",
+            "properties": {
+                "administratorLogin": "[parameters('SQLServerAdminLogin')]",
+                "administratorLoginPassword": "[parameters('SQLServerAdminPassword')]",
+                "version": "12.0"
+            },
+            "resources": [
+                {
+                    "type": "firewallRules",
+                    "apiVersion": "2021-02-01-preview",
+                    "name": "AllowAllWindowsAzureIps",
+                    "location": "[parameters('location')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', parameters('SQLServerName'))]"
+                    ],
+                    "properties": {
+                        "endIpAddress": "0.0.0.0",
+                        "startIpAddress": "0.0.0.0"
+                    }
+                },
+                {
+                    "name": "[concat(parameters('SQLServerName'), '/elasticpool')]",
+                    "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Sql/servers/elasticpools'), parameters('tagsByResource')['Microsoft.Sql/servers/elasticpools'], json('{}')) ]",
+                    "location": "[parameters('location')]",
+                    "type": "Microsoft.Sql/servers/elasticpools",
+                    "apiVersion": "2021-02-01-preview",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', parameters('SQLServerName'))]"
+                    ],
+                    "sku": {
+                        "name": "GP_Gen5",
+                        "tier": "GeneralPurpose",
+                        "capacity": "40"
+                    },
+                    "properties": {
+                        "perDatabaseSettings": {
+                            "minCapacity": "1",
+                            "maxCapacity": "4"
+                        },
+                        "maxSizeBytes": "34359738368",
+                        "zoneRedundant": "false",
+                        "licenseType": "LicenseIncluded"
+                    }
+                }
+            ]
+        }
+    ],
+    "outputs": {
+        "SQLFQDN": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Sql/servers/', parameters('SQLServerName'))).fullyQualifiedDomainName]"
+        }
+    }
+}

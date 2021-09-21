@@ -1,0 +1,591 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "BaseName": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Base Resource name"
+            }
+        },
+        "singleNode": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": {
+                "description": "If the deployment is multi-node or not"
+            }
+        },
+        "dnsLoadBalancer": {
+            "type": "string",
+            "defaultValue": "uipath",
+            "metadata": {
+                "description": "URL for the load balancer"
+            }
+        },
+        "tagsByResource": {
+            "type": "object",
+            "defaultValue": {}
+        }
+    },
+    "variables": {
+        "VnetAddressSpace": "10.0.0.0/16",
+        "SubnetAddressSpace": "10.0.0.0/24",
+        "NSGName": "[concat(parameters('BaseName'),'-NSG')]",
+        "VNETName": "[concat(parameters('BaseName'),'-VNet')]"
+    },
+    "resources": [
+
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2019-08-01",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/networkSecurityGroups'), parameters('tagsByResource')['Microsoft.Network/networkSecurityGroups'], json('{}')) ]",
+            "name": "[variables('NSGName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "Https",
+                        "properties": {
+                            "description": "Allows Https traffic",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "443",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 120,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "Kubernetes",
+                        "properties": {
+                            "description": "Allows kube traffic",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "6443",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 160,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "rke2",
+                        "properties": {
+                            "description": "Allows rke2 traffic",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "9345",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 170,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "Flannel",
+                        "properties": {
+                            "description": "Allows Flannel traffic",
+                            "protocol": "UDP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "8472",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 180,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "internode",
+                        "properties": {
+                            "description": "Allows internode traffic",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "30000-32767",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 190,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "etcd",
+                        "properties": {
+                            "description": "Allows etcd traffic",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2379-2380",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 200,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "metrics",
+                        "properties": {
+                            "description": "Allows metrics traffic",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "10250",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 210,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "SSH",
+                        "properties": {
+                            "description": "Allows SSH traffic",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 110,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "condition": "[not(parameters('singleNode'))]",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "apiVersion": "2020-11-01",
+            "name": "[concat(variables('NSGName'),'/RKE2')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NSGName'))]"
+            ],
+            "properties": {
+                "description": "Allows RKE2 traffic",
+                "protocol": "Tcp",
+                "sourcePortRange": "*",
+                "destinationPortRange": "9345",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 190,
+                "direction": "Inbound"
+            }
+        },
+        {
+            "condition": "[not(parameters('singleNode'))]",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "apiVersion": "2020-11-01",
+            "name": "[concat(variables('NSGName'),'/Flannel')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NSGName'))]"
+            ],
+            "properties": {
+                "description": "Allows Flannel traffic",
+                "protocol": "Udp",
+                "sourcePortRange": "*",
+                "destinationPortRange": "8472",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 200,
+                "direction": "Inbound"
+            }
+        },
+        {
+            "condition": "[not(parameters('singleNode'))]",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "apiVersion": "2020-11-01",
+            "name": "[concat(variables('NSGName'),'/Metrics')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NSGName'))]"
+            ],
+            "properties": {
+                "description": "Allows Metrics traffic",
+                "protocol": "Tcp",
+                "sourcePortRange": "*",
+                "destinationPortRange": "10250",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 210,
+                "direction": "Inbound"
+            }
+        },
+        {
+            "name": "[concat(parameters('BaseName'),'-LB-PIP')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2019-02-01",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/publicIpAddresses'), parameters('tagsByResource')['Microsoft.Network/publicIpAddresses'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "publicIpAllocationMethod": "Static",
+                "dnsSettings": {
+                    "domainNameLabel": "[parameters('dnsLoadBalancer')]"
+                }
+            },
+            "sku": {
+                "name": "Standard"
+            }
+        },
+        {
+            "name": "[concat(parameters('BaseName'),'-NATGW-PIP')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2019-02-01",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/publicIpAddresses'), parameters('tagsByResource')['Microsoft.Network/publicIpAddresses'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "publicIpAllocationMethod": "Static"
+            },
+            "sku": {
+                "name": "Standard"
+            }
+        },
+        {
+            "name": "[concat(parameters('BaseName'),'-JBVM-PIP')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2019-02-01",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/publicIpAddresses'), parameters('tagsByResource')['Microsoft.Network/publicIpAddresses'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "publicIpAllocationMethod": "Static"
+            },
+            "sku": {
+                "name": "Standard"
+            }
+        },
+        {
+            "name": "[concat(parameters('BaseName'),'-NATGW-IPPR')]",
+            "type": "Microsoft.Network/publicIPPrefixes",
+            "apiVersion": "2020-06-01",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "prefixLength": 31,
+                "publicIPAddressVersion": "IPv4"
+            }
+        },
+        {
+            "type": "Microsoft.Network/natGateways",
+            "apiVersion": "2020-06-01",
+            "name": "[concat(parameters('BaseName'),'-NAT-GW')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('BaseName'),'-NATGW-PIP'))]",
+                "[resourceId('Microsoft.Network/publicIPPrefixes', concat(parameters('BaseName'),'-NATGW-IPPR'))]"
+            ],
+            "properties": {
+                "idleTimeoutInMinutes": 4,
+                "publicIpAddresses": [
+                    {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('BaseName'),'-NATGW-PIP'))]"
+                    }
+                ],
+                "publicIpPrefixes": [
+                    {
+                        "id": "[resourceId('Microsoft.Network/publicIPPrefixes', concat(parameters('BaseName'),'-NATGW-IPPR'))]"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/virtualNetworks'), parameters('tagsByResource')['Microsoft.Network/virtualNetworks'], json('{}'))]",
+            "apiVersion": "2020-05-01",
+            "name": "[variables('VNetName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('NSGName'))]",
+                "[resourceId('Microsoft.Network/natGateways',concat(parameters('BaseName'),'-NAT-GW'))]"
+            ],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('VnetAddressSpace')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "subnet",
+                        "properties": {
+                            "addressPrefix": "[variables('SubnetAddressSpace')]",
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('NSGName'))]"
+                            },
+                            "natGateway": {
+                                "id": "[resourceId('Microsoft.Network/natGateways', concat(parameters('BaseName'),'-NAT-GW'))]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2020-07-01",
+            "name": "[concat(parameters('BaseName'),'-ILB')]",
+            "type": "Microsoft.Network/loadBalancers",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/loadBalancers'), parameters('tagsByResource')['Microsoft.Network/loadBalancers'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks',variables('VNETName'))]"
+            ],
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "FEIPconfig",
+                        "properties": {
+                            "privateIPAddress": "10.0.0.4",
+                            "privateIPAddressVersion": "IPv4",
+                            "privateIPAllocationMethod": "Static",
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',concat(parameters('BaseName'),'-VNet'),'subnet')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "AllNodesBackendPool"
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "healthprobe",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 9345,
+                            "requestPath": null,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "lbrule",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations',concat(parameters('BaseName'),'-ILB'),'FEIPconfig')]"
+                            },
+                            "frontendPort": 0,
+                            "backendPort": 0,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "All",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools',concat(parameters('BaseName'),'-ILB'),'AllNodesBackendPool')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes',concat(parameters('BaseName'),'-ILB'),'healthprobe')]"
+                            },
+                            "disableOutboundSnat": true,
+                            "enableTcpReset": false
+                        }
+                    }
+                ],
+                "inboundNatRules": [],
+                "outboundRules": []
+            },
+            "sku": {
+                "name": "Standard",
+                "tier": "Regional"
+            }
+        },
+        {
+            "apiVersion": "2020-07-01",
+            "name": "[concat(parameters('BaseName'),'-LB')]",
+            "type": "Microsoft.Network/loadBalancers",
+            "location": "[parameters('location')]",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Network/loadBalancers'), parameters('tagsByResource')['Microsoft.Network/loadBalancers'], json('{}')) ]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses/',concat(parameters('BaseName'),'-LB-PIP'))]"
+            ],
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "FEIPconfig",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses/',concat(parameters('BaseName'),'-LB-PIP'))]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "AllNodesBackendPool"
+                    },
+                    {
+                        "name": "ServerBackendPool"
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "https-probe",
+                        "properties": {
+                            "protocol": "TCP",
+                            "port": 443,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "kubeapi-probe",
+                        "properties": {
+                            "protocol": "TCP",
+                            "port": 6443,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "rke2-probe",
+                        "properties": {
+                            "protocol": "TCP",
+                            "port": 9345,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ],
+                "inboundNatPools": [
+                    {
+                        "name": "natPoolAgents",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations',concat(parameters('BaseName'),'-LB'),'FEIPconfig')]"
+                            },
+                            "protocol": "tcp",
+                            "frontendPortRangeStart": "50000",
+                            "frontendPortRangeEnd": "50119",
+                            "backendPort": "22"
+                        }
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "Https",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations',concat(parameters('BaseName'),'-LB'),'FEIPconfig')]"
+                            },
+                            "frontendPort": 443,
+                            "backendPort": 443,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "TCP",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools',concat(parameters('BaseName'),'-LB'),'AllNodesBackendPool')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes',concat(parameters('BaseName'),'-LB'),'https-probe')]"
+                            },
+                            "disableOutboundSnat": true,
+                            "enableTcpReset": false
+                        }
+                    },
+                    {
+                        "name": "Http",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations',concat(parameters('BaseName'),'-LB'),'FEIPconfig')]"
+                            },
+                            "frontendPort": 80,
+                            "backendPort": 80,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "TCP",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools',concat(parameters('BaseName'),'-LB'),'AllNodesBackendPool')]"
+                            },
+                            "disableOutboundSnat": true,
+                            "enableTcpReset": false
+                        }
+                    },
+                    {
+                        "name": "Ceph",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations',concat(parameters('BaseName'),'-LB'),'FEIPconfig')]"
+                            },
+                            "frontendPort": 30072,
+                            "backendPort": 30072,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "TCP",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools',concat(parameters('BaseName'),'-LB'),'AllNodesBackendPool')]"
+                            },
+                            "disableOutboundSnat": true,
+                            "enableTcpReset": false
+                        }
+                    },
+                    {
+                        "name": "kubeapi",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations',concat(parameters('BaseName'),'-LB'),'FEIPconfig')]"
+                            },
+                            "frontendPort": 6443,
+                            "backendPort": 6443,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "TCP",
+                            "loadDistribution": "Default",
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools',concat(parameters('BaseName'),'-LB'),'ServerBackendPool')]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes',concat(parameters('BaseName'),'-LB'),'kubeapi-probe')]"
+                            },
+                            "disableOutboundSnat": true,
+                            "enableTcpReset": false
+                        }
+                    }
+                ],
+                "inboundNatRules": [],
+                "outboundRules": []
+            },
+            "sku": {
+                "name": "Standard",
+                "tier": "Regional"
+            }
+        }
+    ],
+    "outputs": {
+        "loadBalancerFQDN": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',concat(parameters('BaseName'),'-LB-PIP'))).dnsSettings.fqdn]"
+        },
+        "loadBalancerPublicIpAddress": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',concat(parameters('BaseName'),'-LB-PIP')), '2019-02-01').IpAddress]"
+        },
+        "JumpBoxVMPublicIp": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('BaseName'),'-JBVM-PIP'))).ipAddress]"
+        }
+    }
+}
