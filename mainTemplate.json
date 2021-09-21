@@ -68,7 +68,7 @@
           }
        },
        "gpuNodeInstanceType":{
-          "defaultValue":"Standard_NC12s_v2",
+          "defaultValue":"Standard_D16_v3",
           "type":"String",
           "metadata":{
              "description":"Instance type of a gpu agent node"
