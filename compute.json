@@ -1,0 +1,812 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "BaseName": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Base Resource name"
+            }
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "serverNodeCount": {
+            "defaultValue": 1,
+            "minValue": 1,
+            "maxValue": 15,
+            "allowedValues": [ 1, 3, 5, 7, 9, 11, 13, 15 ],
+            "type": "int",
+            "metadata": {
+                "description": "Number of server nodes (? or less). Should be an odd number. If single node ignored?"
+            }
+        },
+        "agentNodeCount": {
+            "type": "int",
+            "defaultValue": 1,
+            "minValue": 0,
+            "maxValue": 100,
+            "metadata": {
+                "description": "Number of agent nodes (? or less)"
+            }
+        },
+        "gpuNodeCount": {
+            "type": "int",
+            "defaultValue": 0,
+            "minValue": 0,
+            "maxValue": 100,
+            "metadata": {
+                "description": "Number of agent nodes with GPU capabilities (? or less)"
+            }
+        },
+        "serverNodeInstanceType": {
+            "type": "string",
+            "defaultValue": "Standard_D16s_v3",
+            "metadata": {
+                "description": "Instance type of a server node"
+            }
+        },
+        "agentNodeInstanceType": {
+            "type": "string",
+            "defaultValue": "Standard_D16s_v3",
+            "metadata": {
+                "description": "Instance type of an agent node"
+            }
+        },
+        "gpuNodeInstanceType": {
+            "type": "string",
+            "defaultValue": "Standard_NC12",
+            "metadata": {
+                "description": "Instance type of a gpu agent node"
+            }
+        },
+        "VMAdminUserName": {
+            "type": "String",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Admin username for VM"
+            }
+        },
+        "VMAdminPassword": {
+            "defaultValue": "",
+            "type": "securestring",
+            "metadata": {
+                "description": "Admin password for VMs"
+            }
+        },
+        "automationSuiteVersion": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Version of UiPath Service Fabric to be installed."
+            }
+        },
+        "orchestratorInstallFlag": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": {
+                "description": "Flag which determines whether Orchestrator should be installed."
+            }
+        },
+        "actionCenterInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Action Center should be installed."
+            }
+        },
+        "testManagerInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Test Manager should be installed."
+            }
+        },
+        "insightsInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Insights should be installed."
+            }
+        },
+        "automationHubInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Automation Hub should be installed."
+            }
+        },
+        "automationOpsInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Automation Ops should be installed."
+            }
+        },
+        "appsInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Apps should be installed."
+            }
+        },
+        "aiCenterInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether AI Center should be installed."
+            }
+        },
+        "taskMiningInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Task Mining should be installed."
+            }
+        },
+        "documentUnderstandingInstallFlag": {
+            "type": "bool",
+            "defaultValue": false,
+            "metadata": {
+                "description": "Flag which determines whether Document Understanding should be installed."
+            }
+        },
+        "lbFQDN": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "FQDN associated with the load balancer."
+            }
+        },
+        "sqlFQDN": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "FQDN associated with the SQL Server."
+            }
+        },
+        "SQLServerAdminLogin": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "SQL Azure DB administrator  user login"
+            }
+        },
+        "SQLServerAdminPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Database admin user password"
+            }
+        },
+        "jbVMSize":{
+            "type": "string",
+            "defaultValue":"Standard_B2s",
+            "metadata": {
+                "description": "The jumpbox VM size"
+            }
+        },
+        "scriptUris": {
+            "type": "object",
+            "defaultValue": {},
+            "metadata": {
+                "description": "The object containing the script URIs"
+            }
+        },
+        "tagsByResource": {
+            "type": "object",
+            "defaultValue": {}
+        }
+    },
+    "variables": {
+        "multiNode": "[not(and(equals(parameters('serverNodeCount'),1),equals(parameters('agentNodeCount'),0),equals(parameters('gpuNodeCount'),0)))]",
+        "haEnabled": "[greater(parameters('serverNodeCount'),2)]",
+        "rkeToken": "[guid(resourceGroup().id, deployment().name)]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-06-01",
+            "name": "[concat(parameters('BaseName'),'-JB-NIC')]",
+            "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/networkInterfaces'), parameters('tagsByResource')['Microsoft.Network/networkInterfaces'], json('{}')) ]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachineScaleSets',concat(parameters('BaseName'),'-Server-SS'))]"
+            ],
+            "location": "[parameters('location')]",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAddress": "192.168.0.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('BaseName'),'-JBVM-PIP'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', concat(parameters('BaseName'),'-VNet'), 'subnet')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('BaseName'),'-NSG'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2020-06-01",
+            "name": "[concat(parameters('BaseName'),'-JB-VM')]",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Compute/virtualMachines'), parameters('tagsByResource')['Microsoft.Compute/virtualMachines'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('BaseName'),'-JB-NIC'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('jbVMSize')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "18.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('BaseName'), '-JB-Disk')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        },
+                        "diskSizeGB": 30
+                    }
+                },
+                "osProfile": {
+                    "computerName": "jumpbox",
+                    "adminUsername": "[parameters('VMAdminUserName')]",
+                    "adminPassword": "[parameters('VMAdminPassword')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": false,
+                        "provisionVMAgent": true
+                    },
+                    "allowExtensionOperations": true
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('BaseName'),'-JB-NIC'))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('BaseName'),'-TM-NIC')]",
+            "condition": "[parameters('taskMiningInstallFlag')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2018-10-01",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Network/networkInterfaces'), parameters('tagsByResource')['Microsoft.Network/networkInterfaces'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachineScaleSets', concat(parameters('BaseName'),'-Server-SS'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',concat(parameters('BaseName'),'-VNet'),'subnet')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        }
+                    }
+                ],
+                "enableAcceleratedNetworking": true,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups',concat(parameters('BaseName'),'-NSG'))]"
+                }
+            }
+        },
+        {
+            "name": "[concat(parameters('BaseName'),'-TM-DDISK')]",
+            "condition": "[parameters('taskMiningInstallFlag')]",
+            "type": "Microsoft.Compute/disks",
+            "apiVersion": "2020-09-30",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Compute/disks'), parameters('tagsByResource')['Microsoft.Compute/disks'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "diskSizeGB": 512,
+                "creationData": {
+                    "createOption": "empty"
+                }
+            },
+            "sku": {
+                "name": "Standard_LRS"
+            }
+        },
+        {
+            "name": "[concat(parameters('BaseName'),'-TM-VM')]",
+            "condition": "[parameters('taskMiningInstallFlag')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2021-03-01",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Compute/virtualMachines'), parameters('tagsByResource')['Microsoft.Compute/virtualMachines'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/disks/', concat(parameters('BaseName'),'-TM-DDISK'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces/', concat(parameters('BaseName'),'-TM-NIC'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('serverNodeInstanceType')]"
+                },
+                "storageProfile": {
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        },
+                        "diskSizeGB": 1024
+                    },
+                    "imageReference": {
+                        "publisher": "RedHat",
+                        "offer": "RHEL",
+                        "sku": "8.1",
+                        "version": "latest"
+                    },
+                    "dataDisks": [
+                        {
+                            "lun": 1,
+                            "name": "[concat(parameters('BaseName'),'-TM-DDISK')]",
+                            "createOption": "attach",
+                            "managedDisk": {
+                                "id": "[resourceId('Microsoft.Compute/disks/', concat(parameters('BaseName'),'-TM-DDISK'))]"
+                            }
+                        }
+                    ]
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('BaseName'),'-TM-NIC'))]"
+                        }
+                    ]
+                },
+                "osProfile": {
+                    "computerName": "[concat(parameters('BaseName'),'-TM-VM')]",
+                    "adminUsername": "[parameters('VMAdminUserName')]",
+                    "adminPassword": "[parameters('VMAdminPassword')]",
+                    "linuxConfiguration": {
+                        "patchSettings": {
+                            "patchMode": "ImageDefault"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "condition": "[parameters('taskMiningInstallFlag')]",
+            "name": "[concat(parameters('BaseName'),'-TM-VM', '/resize-disk')]",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Compute/virtualMachines/extensions'), parameters('tagsByResource')['Microsoft.Compute/virtualMachines/extensions'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', concat(parameters('BaseName'),'-TM-VM'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "[parameters('scriptUris').diskResize]",
+                        "[parameters('scriptUris').installPrereq]"
+                    ]
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('sh diskresize.sh && ',
+                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
+                                        ' -b ', variables('multiNode'),
+                                        ' -c ', parameters('VMAdminUserName'),
+                                        ' -d ', parameters('VMAdminPassword'),
+                                        ' -e ', parameters('sqlFQDN'), 
+                                        ' -f ', parameters('SQLServerAdminLogin'),
+                                        ' -g ', parameters('SQLServerAdminPassword'), 
+                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
+                                        ' -i ', parameters('insightsInstallFlag'),
+                                        ' -j ', parameters('testManagerInstallFlag'),
+                                        ' -k ', parameters('automationOpsInstallFlag'),
+                                        ' -l ', parameters('automationHubInstallFlag'),
+                                        ' -m ', parameters('appsInstallFlag'),
+                                        ' -n ', parameters('actionCenterInstallFlag'),
+                                        ' -o ', parameters('taskMiningInstallFlag'), 
+                                        ' -p ', parameters('orchestratorInstallFlag'),
+                                        ' -r ', parameters('aiCenterInstallFlag'),
+                                        ' -s ', variables('rkeToken'),
+                                        ' -t ', variables('haEnabled'),
+                                        ' -u ', parameters('automationSuiteVersion'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachineScaleSets",
+            "apiVersion": "2021-03-01",
+            "name": "[concat(parameters('BaseName'),'-Server-SS')]",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Compute/virtualMachineScaleSets'), parameters('tagsByResource')['Microsoft.Compute/virtualMachineScaleSets'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "[parameters('serverNodeInstanceType')]",
+                "capacity": "[int(parameters('serverNodeCount'))]"
+            },
+            "properties": {
+                "overprovision": false,
+                "singlePlacementGroup": false,
+                "virtualMachineProfile": {
+                    "storageProfile": {
+                        "osDisk": {
+                            "createOption": "fromImage",
+                            "caching": "ReadWrite",
+                            "managedDisk": {
+                                "storageAccountType": "Standard_LRS"
+                            },
+                            "diskSizeGB": 1024
+                        },
+                        "dataDisks": [
+                            {
+                                "diskSizeGB": 1024,
+                                "lun": 1,
+                                "createOption": "Empty"
+                            }
+                        ],
+                        "imageReference": {
+                            "publisher": "RedHat",
+                            "offer": "RHEL",
+                            "sku": "8.1",
+                            "version": "latest"
+                        }
+                    },
+                    "networkProfile": {
+                        "networkInterfaceConfigurations": [
+                            {
+                                "name": "[concat(parameters('BaseName'),'-Server-NICS')]",
+                                "properties": {
+                                    "primary": true,
+                                    "ipConfigurations": [
+                                        {
+                                            "name": "ipconfig",
+                                            "properties": {
+                                                "subnet": {
+                                                    "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',concat(parameters('BaseName'),'-VNet'),'subnet')]"
+                                                },
+                                                "loadBalancerBackendAddressPools": [
+                                                    {
+                                                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', concat(parameters('BaseName'),'-LB'), 'AllNodesBackendPool')]"
+                                                    },
+                                                    {
+                                                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', concat(parameters('BaseName'),'-LB'), 'ServerBackendPool')]"
+                                                    },
+                                                    {
+                                                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', concat(parameters('BaseName'),'-ILB'), 'AllNodesBackendPool')]"
+                                                    }
+                                                ],
+                                                "loadBalancerInboundNatPools": "[resourceId('Microsoft.Network/loadBalancers/inboundNatPools',concat(parameters('BaseName'),'-LB'),'natPoolAgents')]"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "extensionProfile": {
+                        "extensions": [
+                            {
+                                "name": "DiskResize",
+                                "properties": {
+                                    "publisher": "Microsoft.Azure.Extensions",
+                                    "type": "CustomScript",
+                                    "typeHandlerVersion": "2.0",
+                                    "autoUpgradeMinorVersion": true,
+                                    "protectedSettings": {
+                                        "fileUris": [
+                                            "[parameters('scriptUris').diskResize]",
+                                            "[parameters('scriptUris').installPrereq]"
+                                        ],
+                                        "commandToExecute": "[concat('sh diskresize.sh && ',
+                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
+                                        ' -b ', variables('multiNode'),
+                                        ' -c ', parameters('VMAdminUserName'),
+                                        ' -d ', parameters('VMAdminPassword'),
+                                        ' -e ', parameters('sqlFQDN'), 
+                                        ' -f ', parameters('SQLServerAdminLogin'),
+                                        ' -g ', parameters('SQLServerAdminPassword'), 
+                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
+                                        ' -i ', parameters('insightsInstallFlag'),
+                                        ' -j ', parameters('testManagerInstallFlag'),
+                                        ' -k ', parameters('automationOpsInstallFlag'),
+                                        ' -l ', parameters('automationHubInstallFlag'),
+                                        ' -m ', parameters('appsInstallFlag'), 
+                                        ' -n ', parameters('actionCenterInstallFlag'),
+                                        ' -o ', parameters('taskMiningInstallFlag'), 
+                                        ' -p ', parameters('orchestratorInstallFlag'),
+                                        ' -r ', parameters('aiCenterInstallFlag'),
+                                        ' -s ', variables('rkeToken'),
+                                        ' -t ', variables('haEnabled'),
+                                        ' -u ', parameters('automationSuiteVersion'))]"
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "osProfile": {
+                        "computerNamePrefix": "[concat(parameters('BaseName'),'-Server')]",
+                        "adminUsername": "[parameters('VMAdminUserName')]",
+                        "adminPassword": "[parameters('VMAdminPassword')]"
+                    }
+                },
+                "orchestrationMode": "Uniform",
+                "upgradePolicy": {
+                    "mode": "Manual"
+                },
+                "platformFaultDomainCount": 5
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachineScaleSets",
+            "apiVersion": "2021-03-01",
+            "name": "[concat(parameters('BaseName'),'-Agent-SS')]",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Compute/virtualMachineScaleSets'), parameters('tagsByResource')['Microsoft.Compute/virtualMachineScaleSets'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachineScaleSets',concat(parameters('BaseName'),'-Server-SS'))]"
+            ],
+            "sku": {
+                "name": "[parameters('agentNodeInstanceType')]",
+                "capacity": "[int(parameters('agentNodeCount'))]"
+            },
+            "properties": {
+                "singlePlacementGroup": false,
+                "virtualMachineProfile": {
+                    "storageProfile": {
+                        "osDisk": {
+                            "createOption": "fromImage",
+                            "caching": "ReadWrite",
+                            "managedDisk": {
+                                "storageAccountType": "Standard_LRS"
+                            },
+                            "diskSizeGB": 1024
+                        },
+                        "dataDisks": [
+                            {
+                                "diskSizeGB": 512,
+                                "lun": 1,
+                                "createOption": "Empty"
+                            }
+                        ],
+                        "imageReference": {
+                            "publisher": "RedHat",
+                            "offer": "RHEL",
+                            "sku": "8.1",
+                            "version": "latest"
+                        }
+                    },
+                    "networkProfile": {
+                        "networkInterfaceConfigurations": [
+                            {
+                                "name": "[concat(parameters('BaseName'),'-Agent-NIC')]",
+                                "properties": {
+                                    "primary": true,
+                                    "ipConfigurations": [
+                                        {
+                                            "name": "ipconfig",
+                                            "properties": {
+                                                "subnet": {
+                                                    "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',concat(parameters('BaseName'),'-VNet'),'subnet')]"
+                                                },
+                                                "loadBalancerBackendAddressPools": [
+                                                    {
+                                                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', concat(parameters('BaseName'),'-LB'), 'AllNodesBackendPool')]"
+                                                    },
+                                                    {
+                                                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', concat(parameters('BaseName'),'-ILB'), 'AllNodesBackendPool')]"
+                                                    }
+                                                ],
+                                                "loadBalancerInboundNatPools": "[resourceId('Microsoft.Network/loadBalancers/inboundNatPools',concat(parameters('BaseName'),'-LB'),'natPoolAgents')]"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "extensionProfile": {
+                        "extensions": [
+                            {
+                                "name": "DiskResize",
+                                "properties": {
+                                    "publisher": "Microsoft.Azure.Extensions",
+                                    "type": "CustomScript",
+                                    "typeHandlerVersion": "2.0",
+                                    "autoUpgradeMinorVersion": true,
+                                    "protectedSettings": {
+                                        "fileUris": [
+                                            "[parameters('scriptUris').diskResize]",
+                                            "[parameters('scriptUris').installPrereq]"
+                                        ],
+                                        "commandToExecute": "[concat('sh diskresize.sh && ',
+                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
+                                        ' -b ', variables('multiNode'),
+                                        ' -c ', parameters('VMAdminUserName'),
+                                        ' -d ', parameters('VMAdminPassword') ,
+                                        ' -e ', parameters('sqlFQDN'), 
+                                        ' -f ', parameters('SQLServerAdminLogin'),
+                                        ' -g ', parameters('SQLServerAdminPassword'), 
+                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
+                                        ' -i ', parameters('insightsInstallFlag') ,
+                                        ' -j ', parameters('testManagerInstallFlag') ,
+                                        ' -k ', parameters('automationOpsInstallFlag')  ,
+                                        ' -l ', parameters('automationHubInstallFlag')  ,
+                                        ' -m ', parameters('appsInstallFlag') , 
+                                        ' -n ', parameters('actionCenterInstallFlag') ,
+                                        ' -o ', parameters('taskMiningInstallFlag') , 
+                                        ' -p ', parameters('orchestratorInstallFlag') ,
+                                        ' -r ', parameters('aiCenterInstallFlag') ,
+                                        ' -s ', variables('rkeToken'),
+                                        ' -t ', variables('haEnabled'),
+                                        ' -u ', parameters('automationSuiteVersion'))]"
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "osProfile": {
+                        "computerNamePrefix": "[concat(parameters('BaseName'),'-Agent')]",
+                        "adminUsername": "[parameters('VMAdminUserName')]",
+                        "adminPassword": "[parameters('VMAdminPassword')]"
+                    }
+                },
+                "orchestrationMode": "Uniform",
+                "upgradePolicy": {
+                    "mode": "Manual"
+                },
+                "platformFaultDomainCount": 5
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachineScaleSets",
+            "apiVersion": "2021-03-01",
+            "name": "[concat(parameters('BaseName'),'-Gpu-SS')]",
+            "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Compute/virtualMachineScaleSets'), parameters('tagsByResource')['Microsoft.Compute/virtualMachineScaleSets'], json('{}')) ]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachineScaleSets',concat(parameters('BaseName'),'-Server-SS'))]"
+            ],
+            "sku": {
+                "name": "[parameters('gpuNodeInstanceType')]",
+                "capacity": "[int(parameters('gpuNodeCount'))]"
+            },
+            "properties": {
+                "singlePlacementGroup": false,
+                "virtualMachineProfile": {
+                    "storageProfile": {
+                        "osDisk": {
+                            "createOption": "fromImage",
+                            "caching": "ReadWrite",
+                            "managedDisk": {
+                                "storageAccountType": "Standard_LRS"
+                            },
+                            "diskSizeGB": 1024
+                        },
+                        "dataDisks": [
+                            {
+                                "diskSizeGB": 512,
+                                "lun": 1,
+                                "createOption": "Empty"
+                            }
+                        ],
+                        "imageReference": {
+                            "publisher": "RedHat",
+                            "offer": "RHEL",
+                            "sku": "8.1",
+                            "version": "latest"
+                        }
+                    },
+                    "networkProfile": {
+                        "networkInterfaceConfigurations": [
+                            {
+                                "name": "[concat(parameters('BaseName'),'-Gpu-NIC')]",
+                                "properties": {
+                                    "primary": true,
+                                    "ipConfigurations": [
+                                        {
+                                            "name": "ipconfig",
+                                            "properties": {
+                                                "subnet": {
+                                                    "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',concat(parameters('BaseName'),'-VNet'),'subnet')]"
+                                                },
+                                                "loadBalancerBackendAddressPools": [
+                                                    {
+                                                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', concat(parameters('BaseName'),'-LB'), 'AllNodesBackendPool')]"
+                                                    },
+                                                    {
+                                                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', concat(parameters('BaseName'),'-ILB'), 'AllNodesBackendPool')]"
+                                                    }
+                                                ],
+                                                "loadBalancerInboundNatPools": "[resourceId('Microsoft.Network/loadBalancers/inboundNatPools',concat(parameters('BaseName'),'-LB'),'natPoolAgents')]"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "extensionProfile": {
+                        "extensions": [
+                            {
+                                "name": "DiskResize",
+                                "properties": {
+                                    "publisher": "Microsoft.Azure.Extensions",
+                                    "type": "CustomScript",
+                                    "typeHandlerVersion": "2.0",
+                                    "autoUpgradeMinorVersion": true,
+                                    "protectedSettings": {
+                                        "fileUris": [
+                                            "[parameters('scriptUris').diskResize]",
+                                            "[parameters('scriptUris').installPrereq]"
+                                        ],
+                                        "commandToExecute": "[concat('sh diskresize.sh && ',
+                    'sh installPrereq.sh -a ',parameters('lbFQDN'),
+                                        ' -b ', variables('multiNode'),
+                                        ' -c ', parameters('VMAdminUserName'),
+                                        ' -d ', parameters('VMAdminPassword') ,
+                                        ' -e ', parameters('sqlFQDN'), 
+                                        ' -f ', parameters('SQLServerAdminLogin'),
+                                        ' -g ', parameters('SQLServerAdminPassword'), 
+                                        ' -h ', parameters('documentUnderstandingInstallFlag'),
+                                        ' -i ', parameters('insightsInstallFlag') ,
+                                        ' -j ', parameters('testManagerInstallFlag') ,
+                                        ' -k ', parameters('automationOpsInstallFlag')  ,
+                                        ' -l ', parameters('automationHubInstallFlag')  ,
+                                        ' -m ', parameters('appsInstallFlag') , 
+                                        ' -n ', parameters('actionCenterInstallFlag') ,
+                                        ' -o ', parameters('taskMiningInstallFlag') , 
+                                        ' -p ', parameters('orchestratorInstallFlag') ,
+                                        ' -r ', parameters('aiCenterInstallFlag') ,
+                                        ' -s ', variables('rkeToken') ,
+                                        ' -t ', variables('haEnabled'),
+                                        ' -u ', parameters('automationSuiteVersion'))]"
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "osProfile": {
+                        "computerNamePrefix": "[concat(parameters('BaseName'),'-Gpu')]",
+                        "adminUsername": "[parameters('VMAdminUserName')]",
+                        "adminPassword": "[parameters('VMAdminPassword')]"
+                    }
+                },
+                "orchestrationMode": "Uniform",
+                "upgradePolicy": {
+                    "mode": "Manual"
+                },
+                "platformFaultDomainCount": 5
+            }
+        }
+    ],
+    "outputs": {
+    }
+}
